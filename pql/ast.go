@@ -160,10 +160,6 @@ func (q *Query) addNumVal(val string) {
 		ival, err = strconv.ParseInt(val, 10, 64)
 	}
 	if err != nil {
-		// q.err = fmt.Errorf("%e", err)
-		// elem.lastField = ""
-		// elem.lastCond = ILLEGAL
-		// return
 		panic(fmt.Sprintf("out of bounds: %s", err))
 	}
 	if elem.inList {
