@@ -1,0 +1,13 @@
+panic: directRemoveN:
+ removing 3 in slice [3 4 5 6 7 8 12 13] and bitmap [3 4 5 6 7 8 12 13] 
+ expected [4 5 6 7 8 12 13] and 1 changed 
+ got [4 5 6 7 8] and 1 changed
+
+goroutine 1 [running]:
+_/Users/shaquillewyanque/git/pilosa/pilosa/roaring.FuzzRoaringOps(0x4221000, 0x50, 0x200000, 0x3)
+	/Users/shaquillewyanque/git/pilosa/pilosa/roaring/fuzz.go:265 +0x3667
+go-fuzz-dep.Main(0xc0000b9f78, 0x2, 0x2)
+	/var/folders/wm/cbjcy4jd38qb5czt7ygf_txc0000gn/T/go-fuzz-build439518333/goroot/src/go-fuzz-dep/main.go:36 +0x1b6
+main.main()
+	/var/folders/wm/cbjcy4jd38qb5czt7ygf_txc0000gn/T/go-fuzz-build439518333/gopath/src/_/Users/shaquillewyanque/git/pilosa/pilosa/roaring/go.fuzz.main/main.go:17 +0x5d
+exit status 2

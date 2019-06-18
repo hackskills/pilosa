@@ -1,0 +1,3 @@
+panic: shift:
+go-fuzz-dep.Main
+main.main

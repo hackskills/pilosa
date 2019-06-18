@@ -1,0 +1,16 @@
+panic: runtime error: makeslice: len out of range
+
+goroutine 1 [running]:
+_/Users/shaquillewyanque/git/pilosa/pilosa/roaring.(*op).UnmarshalBinary(0xc00008ad90, 0x4010048, 0xd, 0x1fffb8, 0x1221000, 0xc00008ad10)
+	/Users/shaquillewyanque/git/pilosa/pilosa/roaring/roaring.go:3968 +0x26a
+_/Users/shaquillewyanque/git/pilosa/pilosa/roaring.(*Bitmap).unmarshalPilosaRoaring(0xc0000a8060, 0x4010000, 0x55, 0x200000, 0x100b358, 0x30)
+	/Users/shaquillewyanque/git/pilosa/pilosa/roaring/roaring.go:1169 +0xbbc
+_/Users/shaquillewyanque/git/pilosa/pilosa/roaring.(*Bitmap).UnmarshalBinary(0xc0000a8060, 0x4010000, 0x55, 0x200000, 0xcf19170, 0x25be7c9c2d9e)
+	/Users/shaquillewyanque/git/pilosa/pilosa/roaring/roaring.go:4475 +0x585
+_/Users/shaquillewyanque/git/pilosa/pilosa/roaring.Fuzz(0x4010000, 0x55, 0x200000, 0x3)
+	/Users/shaquillewyanque/git/pilosa/pilosa/roaring/fuzz.go:9 +0x7a
+go-fuzz-dep.Main(0xc00008af80, 0x1, 0x1)
+	/var/folders/wm/cbjcy4jd38qb5czt7ygf_txc0000gn/T/go-fuzz-build569113298/goroot/src/go-fuzz-dep/main.go:36 +0x1b6
+main.main()
+	/var/folders/wm/cbjcy4jd38qb5czt7ygf_txc0000gn/T/go-fuzz-build569113298/gopath/src/_/Users/shaquillewyanque/git/pilosa/pilosa/roaring/go.fuzz.main/main.go:15 +0x52
+exit status 2

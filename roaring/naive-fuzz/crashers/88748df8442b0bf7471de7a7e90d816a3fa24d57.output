@@ -1,0 +1,12 @@
+panic: count range:
+ count from 864691128455135232 to 576460752303423488 in slice [72057594037927936 720575940379279361 864691128455135232 2449958197289549824 4899916394579099648 16789419410838124417] and bitmap [72057594037927936 720575940379279361 864691128455135232 2449958197289549824 4899916394579099648 16789419410838124417]:
+ expected 0 got 1
+
+goroutine 1 [running]:
+_/Users/shaquillewyanque/git/pilosa/pilosa/roaring.FuzzRoaringOps(0x4010000, 0x50, 0x200000, 0x3)
+	/Users/shaquillewyanque/git/pilosa/pilosa/roaring/fuzz.go:123 +0x5b77
+go-fuzz-dep.Main(0xc0000adf78, 0x2, 0x2)
+	/var/folders/wm/cbjcy4jd38qb5czt7ygf_txc0000gn/T/go-fuzz-build439518333/goroot/src/go-fuzz-dep/main.go:36 +0x1b6
+main.main()
+	/var/folders/wm/cbjcy4jd38qb5czt7ygf_txc0000gn/T/go-fuzz-build439518333/gopath/src/_/Users/shaquillewyanque/git/pilosa/pilosa/roaring/go.fuzz.main/main.go:17 +0x5d
+exit status 2

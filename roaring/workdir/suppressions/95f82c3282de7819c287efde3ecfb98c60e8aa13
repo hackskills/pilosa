@@ -1,0 +1,3 @@
+panic: can't thaw invalid container, type 8
+go-fuzz-dep.Main
+main.main

@@ -1,0 +1,14 @@
+panic: runtime error: index out of range
+
+goroutine 1 [running]:
+_/Users/shaquillewyanque/git/pilosa/pilosa/roaring.readWithRuns(0xc00009c030, 0x2010000, 0x9, 0x200000, 0x9, 0x1)
+	/Users/shaquillewyanque/git/pilosa/pilosa/roaring/roaring.go:4551 +0x5f5
+_/Users/shaquillewyanque/git/pilosa/pilosa/roaring.(*Bitmap).UnmarshalBinary(0xc00009c030, 0x2010000, 0x9, 0x200000, 0x1594eed0, 0x1ecacccd6f9a)
+	/Users/shaquillewyanque/git/pilosa/pilosa/roaring/roaring.go:4497 +0x3dc
+_/Users/shaquillewyanque/git/pilosa/pilosa/roaring.Fuzz(0x2010000, 0x9, 0x200000, 0x4)
+	/Users/shaquillewyanque/git/pilosa/pilosa/roaring/fuzz.go:9 +0x7a
+go-fuzz-dep.Main(0xc00008af80, 0x1, 0x1)
+	/var/folders/wm/cbjcy4jd38qb5czt7ygf_txc0000gn/T/go-fuzz-build569113298/goroot/src/go-fuzz-dep/main.go:36 +0x1b6
+main.main()
+	/var/folders/wm/cbjcy4jd38qb5czt7ygf_txc0000gn/T/go-fuzz-build569113298/gopath/src/_/Users/shaquillewyanque/git/pilosa/pilosa/roaring/go.fuzz.main/main.go:15 +0x52
+exit status 2

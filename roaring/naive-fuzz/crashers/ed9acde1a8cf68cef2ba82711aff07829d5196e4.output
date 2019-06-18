@@ -1,0 +1,48 @@
+program hanged (timeout 10 seconds)
+
+SIGABRT: abort
+PC=0x7fff6190786a m=0 sigcode=0
+
+goroutine 0 [idle]:
+runtime.pthread_cond_wait(0x120c8e8, 0x120c8a8, 0x0)
+	/var/folders/wm/cbjcy4jd38qb5czt7ygf_txc0000gn/T/go-fuzz-build439518333/goroot/src/runtime/sys_darwin.go:357 +0x3b
+runtime.semasleep(0xffffffffffffffff, 0x12108a0)
+	/var/folders/wm/cbjcy4jd38qb5czt7ygf_txc0000gn/T/go-fuzz-build439518333/goroot/src/runtime/os_darwin.go:63 +0x85
+runtime.notesleep(0x120c6a8)
+	/var/folders/wm/cbjcy4jd38qb5czt7ygf_txc0000gn/T/go-fuzz-build439518333/goroot/src/runtime/lock_sema.go:167 +0xe0
+runtime.stopm()
+	/var/folders/wm/cbjcy4jd38qb5czt7ygf_txc0000gn/T/go-fuzz-build439518333/goroot/src/runtime/proc.go:1936 +0xc1
+runtime.findrunnable(0xc000020000, 0x0)
+	/var/folders/wm/cbjcy4jd38qb5czt7ygf_txc0000gn/T/go-fuzz-build439518333/goroot/src/runtime/proc.go:2399 +0x54a
+runtime.schedule()
+	/var/folders/wm/cbjcy4jd38qb5czt7ygf_txc0000gn/T/go-fuzz-build439518333/goroot/src/runtime/proc.go:2525 +0x21c
+runtime.park_m(0xc000000f00)
+	/var/folders/wm/cbjcy4jd38qb5czt7ygf_txc0000gn/T/go-fuzz-build439518333/goroot/src/runtime/proc.go:2605 +0xa1
+runtime.mcall(0x104fbbb)
+	/var/folders/wm/cbjcy4jd38qb5czt7ygf_txc0000gn/T/go-fuzz-build439518333/goroot/src/runtime/asm_amd64.s:299 +0x5b
+
+goroutine 1 [running]:
+	goroutine running on other thread; stack unavailable
+
+rax    0x104
+rbx    0x2
+rcx    0x7ffeefbff658
+rdx    0x300
+rdi    0x120c8e8
+rsi    0x30100000400
+rbp    0x7ffeefbff6e0
+rsp    0x7ffeefbff658
+r8     0x0
+r9     0xa0
+r10    0x0
+r11    0x202
+r12    0x120c8e8
+r13    0x16
+r14    0x30100000400
+r15    0x25695c0
+rip    0x7fff6190786a
+rflags 0x203
+cs     0x7
+fs     0x0
+gs     0x0
+exit status 2
