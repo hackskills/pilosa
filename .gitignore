@@ -4,3 +4,6 @@ vendor
 .protoc-gen-gofast
 .DS_Store
 build
+roaring/naive-fuzz
+roaring/workdir
+roaring/roaring-fuzz.zip
