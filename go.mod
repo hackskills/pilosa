@@ -3,22 +3,27 @@ module github.com/pilosa/pilosa
 replace github.com/hashicorp/memberlist => github.com/pilosa/memberlist v0.1.4-0.20190415211605-f6512523c021
 
 require (
+	github.com/Arafatk/glot v0.0.0-20180312013246-79d5219000f0
 	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/CAFxX/gcnotifier v0.0.0-20190112062741-224a280d589d
 	github.com/DataDog/datadog-go v0.0.0-20180822151419-281ae9f2d895
 	github.com/StackExchange/wmi v0.0.0-20181212234831-e0a55b97c705 // indirect
 	github.com/boltdb/bolt v1.3.1
+	github.com/buraksezer/consistent v0.0.0-20190524112033-8d954167dcc6
 	github.com/cespare/xxhash v1.1.0
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
 	github.com/davecgh/go-spew v1.1.1
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/gogo/protobuf v1.2.0
+	github.com/golang/groupcache v0.0.0-20190702054246-869f871628b6
 	github.com/golang/protobuf v1.3.1
 	github.com/google/go-cmp v0.2.0
 	github.com/gorilla/handlers v1.3.0
 	github.com/gorilla/mux v1.7.0
 	github.com/hashicorp/memberlist v0.1.3
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/lafikl/consistent v0.0.0-20190331123054-b5c3ef09639f
+	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/pelletier/go-toml v1.2.0
 	github.com/pkg/errors v0.8.1
@@ -30,9 +35,11 @@ require (
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/pflag v1.0.3
 	github.com/spf13/viper v1.3.1
+	github.com/twmb/murmur3 v1.0.0
 	github.com/uber-go/atomic v1.4.0 // indirect
 	github.com/uber/jaeger-client-go v2.16.0+incompatible
 	github.com/uber/jaeger-lib v2.0.0+incompatible // indirect
+	github.com/wdamron/go-anchorhash v0.0.0-20190327070005-3177082fab07
 	go.uber.org/atomic v1.4.0 // indirect
 	golang.org/x/crypto v0.0.0-20190426145343-a29dc8fdc734 // indirect
 	golang.org/x/net v0.0.0-20190424112056-4829fb13d2c6 // indirect

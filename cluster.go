@@ -16,19 +16,26 @@ package pilosa
 
 import (
 	"context"
+	"crypto/md5"
+	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"hash/fnv"
 	"io/ioutil"
+	"math"
 	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
+	"github.com/wdamron/go-anchorhash"
+	"github.com/cespare/xxhash"
 	"github.com/gogo/protobuf/proto"
 	"github.com/pilosa/pilosa/internal"
 	"github.com/pilosa/pilosa/logger"
@@ -36,6 +43,7 @@ import (
 	"github.com/pilosa/pilosa/tracing"
 	"github.com/pkg/errors"
 	uuid "github.com/satori/go.uuid"
+	"github.com/twmb/murmur3"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -872,15 +880,17 @@ func (c *cluster) shardDistributionByIndex(index string, maxShard uint64) ([]Nod
 }
 
 // partition returns the partition that a shard belongs to.
-func (c *cluster) partition(index string, shard uint64) int {
+func (c *cluster) partition(index string, shard uint64) uint64 {
 	var buf [8]byte
 	binary.BigEndian.PutUint64(buf[:], shard)
 
 	// Hash the bytes and mod by partition count.
-	h := fnv.New64a()
+	h := murmur3.New64()
 	_, _ = h.Write([]byte(index))
 	_, _ = h.Write(buf[:])
-	return int(h.Sum64() % uint64(c.partitionN))
+	// we're okay with integer overflowing here
+	return ((h.Sum64()))
+	// return shard
 }
 
 // ShardNodes returns a list of nodes that own a fragment. Safe for concurrent use.
@@ -903,7 +913,8 @@ func (c *cluster) ownsShard(nodeID string, index string, shard uint64) bool {
 }
 
 // partitionNodes returns a list of nodes that own a partition. unprotected.
-func (c *cluster) partitionNodes(partitionID int) []*Node {
+func (c *cluster) partitionNodes(partitionID uint64) []*Node {
+	// func (c *cluster) partitionNodes(partitionID uint64) []*Node {
 	// Default replica count to between one and the number of nodes.
 	// The replica count can be zero if there are no nodes.
 	replicaN := c.ReplicaN
@@ -941,11 +952,79 @@ func (c *cluster) containsShards(index string, availableShards *roaring.Bitmap, 
 	return shards
 }
 
+// Hasher2 interface
+type Hasher2 interface {
+	Hash(key int) string
+}
+
+type mglevhasher struct {
+	// The permutation table of partitions and nodes.
+	permutation map[string][]int
+
+	lookup []string
+
+	nodeIDs []string
+}
+
+func newMglevHasher(nodeIDs []string, M int) *mglevhasher {
+	ids := make([]string, len(nodeIDs))
+	copy(ids, nodeIDs)
+	m := &mglevhasher{
+		nodeIDs: ids,
+	}
+	m.generatePermutations(M)
+	m.populate(M)
+	return m
+}
+
+func (m *mglevhasher) generatePermutations(M int) {
+	m.permutation = make(map[string][]int)
+	for _, ID := range m.nodeIDs {
+		offset := int(murmur3.StringSum64(ID) % uint64(M))
+		h := fnv.New64a()
+		_, _ = h.Write([]byte(ID))
+		skip := int(h.Sum64()%uint64(M-1)) + 1
+
+		m.permutation[ID] = make([]int, M)
+		for i := 0; i < M; i++ {
+			m.permutation[ID][i] = (offset + i*skip) % M
+		}
+	}
+}
+
+func (m *mglevhasher) populate(M int) {
+	N := len(m.nodeIDs)
+	m.lookup = make([]string, M)
+	next := make([]int, N)
+	n := 0
+	for {
+		for i, ID := range m.nodeIDs {
+			c := m.permutation[ID][next[i]]
+			for m.lookup[c] != "" {
+				next[i]++
+				c = m.permutation[ID][next[i]]
+			}
+			m.lookup[c] = ID
+			next[i]++
+			n++
+			if n == M {
+				return
+			}
+		}
+	}
+}
+
+// Hash returns the node for the given key.
+func (m *mglevhasher) Hash(key int) string {
+	return m.lookup[key]
+}
+
 // Hasher represents an interface to hash integers into buckets.
 type Hasher interface {
 	// Hashes the key into a number between [0,N).
 	Hash(key uint64, n int) int
 }
+
 
 // jmphasher represents an implementation of jmphash. Implements Hasher.
 type jmphasher struct{}
@@ -959,6 +1038,213 @@ func (h *jmphasher) Hash(key uint64, n int) int {
 		j = int64(float64(b+1) * (float64(int64(1)<<31) / float64((key>>33)+1)))
 	}
 	return int(b)
+}
+
+type anchorhasher struct{
+	*anchor.CompactAnchor
+}
+
+func newAnchorHasher() *anchorhasher {
+	return &anchorhasher{anchor.NewCompactAnchor(12, 10)}
+}
+
+// Hash returns the integer hash for the given key.
+func (h *anchorhasher) Hash(key uint64, n int) int {
+	return int(h.GetBucket(key))
+}
+
+
+type mpchasher struct {
+	hashf   func(b []byte, s uint64) uint64
+	k       int
+	nhashes []uint64
+}
+
+// NewMPCHasher returns a new multi-probe consistent hasher.
+func NewMPCHasher() *mpchasher {
+	return &mpchasher{
+		hashf: func(b []byte, s uint64) uint64 {
+			return murmur3.SeedSum64(s, b)
+		},
+		k: 1024,
+	}
+}
+
+// Hash returns the integer hash for the given key.
+func (m *mpchasher) Hash(key uint64, n int) int {
+	if m.nhashes == nil {
+		nhashes := make([]uint64, n)
+		for i := 0; i < n; i++ {
+			var buf [8]byte
+			binary.BigEndian.PutUint64(buf[:], uint64(i))
+			nhashes[i] = murmur3.Sum64(buf[:])
+		}
+		sort.Sort(uint64Slice(nhashes))
+		m.nhashes = nhashes
+	}
+	nhashes := m.nhashes
+
+	var keyb [8]byte
+	binary.BigEndian.PutUint64(keyb[:], key)
+
+	minDistance := uint64(math.MaxUint64)
+	var minIdx int
+
+	for seed := 0; seed < m.k; seed++ {
+		hash := m.hashf(keyb[:], uint64(seed))
+
+		idx := sort.Search(len(nhashes), func(i int) bool { return nhashes[i] >= hash })
+
+		// Means we have cycled back to the first replica.
+		if idx == n {
+			idx = 0
+		}
+
+		distance := nhashes[idx] - hash
+		if distance < minDistance {
+			minDistance = distance
+			minIdx = idx
+		}
+	}
+
+	return minIdx
+}
+
+type modhasher struct{}
+
+// Hash returns the integer hash for the given key.
+func (h *modhasher) Hash(key uint64, n int) int {
+	return int(key % uint64(n))
+}
+
+// rendezvousHasher represnts an implementation of rendezvous hashing. Implements Hasher.
+type rdvhasher struct{}
+
+// Hash returns the integer hash for the given key.
+func (h *rdvhasher) Hash(key uint64, n int) int {
+	m := -1
+	mhash := uint64(0)
+	f := murmur3.New64()
+	for i := 0; i < n; i++ {
+		f.Reset()
+		var buf1, buf2 [8]byte
+		binary.BigEndian.PutUint64(buf1[:], key)
+		binary.BigEndian.PutUint64(buf2[:], uint64(i))
+		f.Write(buf1[:])
+		f.Write(buf2[:])
+		ihash := f.Sum64()
+		if ihash > mhash {
+			mhash = ihash
+			m = i
+		}
+	}
+	return m
+}
+
+func xorshiftMult64(x uint64) uint64 {
+	x ^= x >> 12 // a
+	x ^= x << 25 // b
+	x ^= x >> 27 // c
+	return x * 2685821657736338717
+}
+
+func dummy() {
+	xxhash.New()
+	murmur3.New64()
+	fnv.New64()
+	strconv.Itoa(10)
+	sha1.New()
+	sha256.New()
+	md5.New()
+	binary.Size(0)
+	math.Abs(9)
+	anchor.NewAnchor(0,0)
+}
+
+// Minimal-memory AnchorHash implementation.
+type Anchor struct {
+	// We use an integer array A of size a to represent the Anchor.
+	//
+	// Each bucket b ∈ {0, 1, ..., a−1} is represented by A[b] that either equals 0 if b
+	// is a working bucket (i.e., A[b] = 0 if b ∈ W), or else equals the size of the working
+	// set just after its removal (i.e., A[b] = |Wb| if b ∈ R).
+	A []uint32
+	// K stores the successor for each removed bucket b (i.e. the bucket that replaced it in W).
+	K []uint32
+	// W always contains the current set of working buckets in their desired order.
+	W []uint32
+	// L stores the most recent location for each bucket within W.
+	L []uint32
+	// R saves removed buckets in a LIFO order for possible future bucket additions.
+	R []uint32
+	// N is the current length of W
+	N uint32
+}
+
+// Create a new anchor with a given capacity and initial size.
+//
+// 	INITANCHOR(a, w)
+// 	A[b] ← 0 for b = 0, 1, ..., a−1    ◃ |Wb| ← 0 for b ∈ A
+// 	R ← ∅                              ◃ Empty stack
+// 	N ← w                              ◃ Number of initially working buckets
+// 	K[b] ← L[b] ← W[b] ← b for b = 0, 1, ..., a−1
+// 	for b = a−1 downto w do            ◃ Remove initially unused buckets
+// 	  REMOVEBUCKET(b)
+func NewAnchor(buckets, used int) *Anchor {
+	a := &Anchor{
+		A: make([]uint32, buckets),
+		K: make([]uint32, buckets),
+		W: make([]uint32, buckets),
+		L: make([]uint32, buckets),
+		R: make([]uint32, buckets-used, buckets),
+		N: uint32(used),
+	}
+	for b := uint32(0); b < uint32(used); b++ {
+		a.K[b], a.W[b], a.L[b] = b, b, b
+	}
+	for b, r := uint32(buckets)-1, 0; b >= uint32(used); b, r = b-1, r+1 {
+		a.A[b], a.R[r] = b, b
+	}
+	return a
+}
+
+// Get the bucket which a hash-key is assigned to.
+//
+// If the path for a given key contains any non-working buckets, the path (and in turn,
+// the assigned bucket for the key) will be determined by the order in which the non-working
+// buckets were removed. To maintain consistency in a distributed system, all agents must
+// reach consensus on the ordering of changes to the working set. For more information,
+// see Section III, Theorem 1 in the paper.
+//
+// 	GETBUCKET(k)
+// 	b ← hash(k) mod a
+// 	while A[b] > 0 do          ◃ b is removed
+// 	  h ← hb(k)                ◃ hb(k) ≡ hash(k) mod A[b]
+// 	  while A[h] ≥ A[b] do     ◃ Wb[h] != h, b removed prior to h
+// 	    h ← K[h]               ◃ search for Wb[h]
+// 	  b ← h
+// 	return b
+func (a *Anchor) GetBucket(key uint64) uint32 {
+	A, K := a.A, a.K
+	var buf [8]byte
+	binary.BigEndian.PutUint64(buf[:], key)
+	ha := fnv.New32a()
+	_, _ = ha.Write(buf[:])
+	hd := ha.Sum32()
+	b := hd % uint32(len(A))
+	for A[b] > 0 {
+		var buf [4]byte
+		binary.BigEndian.PutUint32(buf[:], A[b])
+		ha := fnv.New32a()
+		_, _ = ha.Write(buf[:])
+		hd := ha.Sum32()
+		h := hd % A[b]
+		for A[h] >= A[b] {
+			h = K[h]
+		}
+		b = h
+	}
+	return b
 }
 
 func (c *cluster) setup() error {
